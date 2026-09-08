@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+.DS_Store
+
+# SQLite local data (personal contact data should not be committed)
+*.db
+*.db-journal
+apps/server/prisma/dev.db
+
+# Prisma generated client
+apps/server/generated/
+
+.vite/
+*.tsbuildinfo

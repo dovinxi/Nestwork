@@ -1,0 +1,142 @@
+// NestWork data model.
+// SQLite for local-first storage; switching `datasource.provider` to
+// "postgresql" is the only change needed if we later add cloud sync.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Singleton row representing the app's owner -- the fixed center of the relationship web.
+model UserProfile {
+  id        String   @id @default("me")
+  name      String   @default("Me")
+  photoUrl  String?
+  updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String?
+  nickname  String?
+  photoUrl  String?
+
+  birthday   DateTime?
+  company    String?
+  jobTitle   String?
+
+  relationshipToMe String?
+  howWeMet         String?
+  notes            String?
+
+  // Keep-in-touch cadence, flattened onto Contact (1:1 concept).
+  keepInTouchFrequencyDays Int?
+  lastContactedAt          DateTime?
+  nextReminderAt           DateTime?
+
+  emails    ContactEmail[]
+  phones    ContactPhone[]
+  addresses ContactAddress[]
+  tags      Tag[]            @relation("ContactTags")
+  circles   Circle[]         @relation("ContactCircles")
+
+  interactions   Interaction[]
+  draftMessages  DraftMessage[]
+
+  relationshipsAsA Relationship[] @relation("RelationshipContactA")
+  relationshipsAsB Relationship[] @relation("RelationshipContactB")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ContactEmail {
+  id        String  @id @default(cuid())
+  label     String
+  value     String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+}
+
+model ContactPhone {
+  id        String  @id @default(cuid())
+  label     String
+  value     String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+}
+
+model ContactAddress {
+  id         String  @id @default(cuid())
+  label      String
+  street     String?
+  city       String?
+  state      String?
+  postalCode String?
+  country    String?
+  contact    Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId  String
+}
+
+/// "What I know about this person" -- freeform attributes (e.g. "foodie", "allergic to nuts").
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  color     String
+  contacts  Contact[] @relation("ContactTags")
+  createdAt DateTime  @default(now())
+}
+
+/// "Where this person fits in my life" -- life-domain groupings (e.g. Family, Work, College).
+/// A contact can belong to multiple circles. Circles are the spatial clusters in the
+/// relationship web; Tags draw connections across those clusters.
+model Circle {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  color     String
+  contacts  Contact[] @relation("ContactCircles")
+  createdAt DateTime  @default(now())
+}
+
+/// An edge in the relationship "web" between two contacts (not the user).
+model Relationship {
+  id         String   @id @default(cuid())
+  contactA   Contact  @relation("RelationshipContactA", fields: [contactAId], references: [id], onDelete: Cascade)
+  contactAId String
+  contactB   Contact  @relation("RelationshipContactB", fields: [contactBId], references: [id], onDelete: Cascade)
+  contactBId String
+  type       String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([contactAId])
+  @@index([contactBId])
+}
+
+model Interaction {
+  id        String   @id @default(cuid())
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+  date      DateTime
+  type      String
+  summary   String
+  important Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+/// Phase 2 (AI-assisted drafting). Table exists now so the API shape is stable later.
+model DraftMessage {
+  id             String   @id @default(cuid())
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId      String
+  occasion       String?
+  draftText      String
+  status         String   @default("draft")
+  generatedByAI  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
