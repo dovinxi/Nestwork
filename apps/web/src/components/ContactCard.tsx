@@ -3,6 +3,7 @@ import type { Contact, Tag, Circle } from "@nestwork/shared";
 import { TagBadge } from "./TagBadge";
 import { CircleBadge } from "./CircleBadge";
 import { getReminderStatus } from "../utils/keepInTouch";
+import { capitalize } from "../utils/text";
 
 const STATUS_DOT: Record<string, string> = {
   overdue: "bg-red-400",
@@ -40,7 +41,7 @@ export function ContactCard({ contact, tags, circles }: { contact: Contact; tags
           )}
         </div>
         {contact.relationshipToMe && (
-          <div className="truncate text-sm text-slateblue-500">{contact.relationshipToMe}</div>
+          <div className="truncate text-sm text-slateblue-500">{capitalize(contact.relationshipToMe)}</div>
         )}
         {(contactCircles.length > 0 || contactTags.length > 0) && (
           <div className="mt-1.5 flex flex-wrap gap-1">

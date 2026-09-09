@@ -1,9 +1,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useProfile, useUpdateProfile } from "../api/profile";
+import { useProfileStats } from "../api/stats";
+import { StatCard } from "../components/StatCard";
 
 export function ProfilePage() {
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
+  const { data: profileStats } = useProfileStats();
 
   const [name, setName] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
@@ -69,6 +72,17 @@ export function ProfilePage() {
           </button>
         </div>
       </form>
+
+      {!!profileStats?.stats.length && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slateblue-400">Your stats</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {profileStats.stats.map((stat) => (
+              <StatCard key={stat.id} stat={stat} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

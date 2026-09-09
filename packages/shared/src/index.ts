@@ -5,3 +5,4 @@ export * from "./relationship";
 export * from "./interaction";
 export * from "./draftMessage";
 export * from "./userProfile";
+export * from "./profileStats";

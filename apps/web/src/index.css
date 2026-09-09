@@ -11,3 +11,38 @@ body,
 body {
   @apply bg-nest-50 text-slateblue-800;
 }
+
+/* Relationship web: hover-grow on circle-cluster bubbles and person nodes. */
+.rel-bubble-circle {
+  transition: r 200ms ease-out, opacity 200ms ease-out;
+}
+
+.rel-bubble:hover .rel-bubble-circle {
+  r: var(--hover-r);
+  opacity: 0.24;
+}
+
+.rel-node-circle,
+.rel-center-circle {
+  transition: r 150ms ease-out;
+}
+
+.rel-node:hover .rel-node-circle {
+  r: 27px;
+}
+
+.rel-node:hover .rel-center-circle {
+  r: 32px;
+}
+
+/* Connection labels stay hidden until you hover the line -- avoids overlapping
+   text clutter when several edges cross near the same spot. */
+.rel-edge-label {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.rel-edge:hover .rel-edge-label {
+  opacity: 1;
+}

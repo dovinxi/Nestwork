@@ -17,7 +17,11 @@ export function useContacts(params?: { tagId?: string; circleId?: string; search
 
 export function useContact(id: string | undefined) {
   return useQuery({
-    queryKey: ["contacts", id],
+    // Deliberately a different key namespace than useContacts's ["contacts", ...] --
+    // useContacts() with no args and useContact(undefined) would otherwise hash to
+    // the same cache key, so the add-contact form could pick up the contacts *list*
+    // as `existing` and crash on `existing.emails.map`.
+    queryKey: ["contact", id],
     queryFn: () => api.get<Contact>(`/contacts/${id}`),
     enabled: !!id,
   });
@@ -37,7 +41,7 @@ export function useUpdateContact(id: string) {
     mutationFn: (input: ContactUpdateInput) => api.put<Contact>(`/contacts/${id}`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
-      queryClient.invalidateQueries({ queryKey: ["contacts", id] });
+      queryClient.invalidateQueries({ queryKey: ["contact", id] });
     },
   });
 }
@@ -46,7 +50,10 @@ export function useDeleteContact() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<void>(`/contacts/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["contact"] });
+    },
   });
 }
 
@@ -56,7 +63,7 @@ export function useLogContact(id: string) {
     mutationFn: () => api.post<Contact>(`/contacts/${id}/log-contact`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
-      queryClient.invalidateQueries({ queryKey: ["contacts", id] });
+      queryClient.invalidateQueries({ queryKey: ["contact", id] });
     },
   });
 }

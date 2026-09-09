@@ -34,7 +34,7 @@ export function ContactsListPage() {
       <div className="mb-5 flex flex-col gap-3">
         <input
           type="text"
-          placeholder="Search by name or company..."
+          placeholder="Search everything: name, circle, tag, job, notes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded-lg border border-nest-200 bg-white px-3 py-2 text-sm text-slateblue-800 placeholder:text-slateblue-300 focus:border-nest-400 focus:outline-none sm:w-64"

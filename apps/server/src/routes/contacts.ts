@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { ContactCreateInput, ContactUpdateInput } from "@nestwork/shared";
+import type { ContactCreateInput, ContactUpdateInput, ProfileStat } from "@nestwork/shared";
 import { prisma } from "../prismaClient";
 import { serializeContact } from "../serializers";
 
@@ -22,19 +22,42 @@ function computeNextReminder(lastContactedAt?: string, frequencyDays?: number) {
 
 contactsRouter.get("/", async (req, res) => {
   const { tagId, circleId, search } = req.query;
+  const q = search ? String(search) : undefined;
 
   const contacts = await prisma.contact.findMany({
     where: {
       AND: [
         tagId ? { tags: { some: { id: String(tagId) } } } : {},
         circleId ? { circles: { some: { id: String(circleId) } } } : {},
-        search
+        q
           ? {
               OR: [
-                { firstName: { contains: String(search) } },
-                { lastName: { contains: String(search) } },
-                { nickname: { contains: String(search) } },
-                { company: { contains: String(search) } },
+                { firstName: { contains: q } },
+                { lastName: { contains: q } },
+                { nickname: { contains: q } },
+                { company: { contains: q } },
+                { jobTitle: { contains: q } },
+                { relationshipToMe: { contains: q } },
+                { howWeMet: { contains: q } },
+                { notes: { contains: q } },
+                { tags: { some: { name: { contains: q } } } },
+                { circles: { some: { name: { contains: q } } } },
+                { emails: { some: { value: { contains: q } } } },
+                { phones: { some: { value: { contains: q } } } },
+                {
+                  addresses: {
+                    some: {
+                      OR: [
+                        { street: { contains: q } },
+                        { city: { contains: q } },
+                        { state: { contains: q } },
+                        { postalCode: { contains: q } },
+                        { country: { contains: q } },
+                      ],
+                    },
+                  },
+                },
+                { interactions: { some: { summary: { contains: q } } } },
               ],
             }
           : {},
@@ -54,6 +77,55 @@ contactsRouter.get("/:id", async (req, res) => {
   });
   if (!contact) return res.status(404).json({ error: "Contact not found" });
   res.json(serializeContact(contact));
+});
+
+/**
+ * Same "connectivity" definition as the profile's closest/furthest stats:
+ * distinct other contacts linked via a logged Relationship or a shared Tag.
+ */
+contactsRouter.get("/:id/stats", async (req, res) => {
+  const contact = await prisma.contact.findUnique({
+    where: { id: req.params.id },
+    include: {
+      tags: { select: { id: true } },
+      relationshipsAsA: { select: { contactBId: true } },
+      relationshipsAsB: { select: { contactAId: true } },
+      interactions: { select: { id: true } },
+    },
+  });
+  if (!contact) return res.status(404).json({ error: "Contact not found" });
+
+  const connectedIds = new Set<string>();
+  for (const rel of contact.relationshipsAsA) connectedIds.add(rel.contactBId);
+  for (const rel of contact.relationshipsAsB) connectedIds.add(rel.contactAId);
+
+  if (contact.tags.length) {
+    const sharedTagContacts = await prisma.contact.findMany({
+      where: {
+        id: { not: contact.id },
+        tags: { some: { id: { in: contact.tags.map((t) => t.id) } } },
+      },
+      select: { id: true },
+    });
+    for (const c of sharedTagContacts) connectedIds.add(c.id);
+  }
+
+  const stats: ProfileStat[] = [
+    {
+      id: "connections",
+      label: "Connections",
+      value: String(connectedIds.size),
+      description: connectedIds.size === 1 ? "person shared in your web" : "people shared in your web",
+    },
+    {
+      id: "interactions-logged",
+      label: "Interactions Logged",
+      value: String(contact.interactions.length),
+      description: contact.interactions.length === 1 ? "thing remembered" : "things remembered",
+    },
+  ];
+
+  res.json({ stats });
 });
 
 contactsRouter.post("/", async (req, res) => {
