@@ -1,14 +1,15 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { SUGGESTED_RELATIONSHIP_TYPES } from "@nestwork/shared";
 import { useContact, useDeleteContact, useLogContact, useContacts, useUpdateContact } from "../api/contacts";
 import { useTags, useCreateTag } from "../api/tags";
 import { useCircles } from "../api/circles";
+import { useRelationshipTypes } from "../api/relationshipTypes";
 import { useCreateRelationship, useDeleteRelationship, useRelationships } from "../api/relationships";
 import { useCreateInteraction, useInteractions } from "../api/interactions";
 import { useCreateDraftMessage, useDraftMessages } from "../api/draftMessages";
 import { TagBadge } from "./TagBadge";
 import { CircleBadge } from "./CircleBadge";
+import { ProfileCompletionBar } from "./ProfileCompletionBar";
 import { formatRelativeDays, getReminderStatus } from "../utils/keepInTouch";
 import { capitalize } from "../utils/text";
 
@@ -34,12 +35,18 @@ interface ContactDetailContentProps {
   onDeleted: () => void;
   /** When provided (panel context), clicking a connection swaps the panel to that contact instead of navigating away. */
   onNavigateContact?: (contactId: string) => void;
+  /**
+   * When provided (panel context), "Edit" calls this instead of navigating to the /edit route --
+   * keeps editing in-place so Cancel returns to this same preview instead of losing it.
+   */
+  onEdit?: () => void;
 }
 
-export function ContactDetailContent({ contactId: id, onDeleted, onNavigateContact }: ContactDetailContentProps) {
+export function ContactDetailContent({ contactId: id, onDeleted, onNavigateContact, onEdit }: ContactDetailContentProps) {
   const { data: contact } = useContact(id);
   const { data: tags } = useTags();
   const { data: circles } = useCircles();
+  const { data: relationshipTypes } = useRelationshipTypes();
   const { data: allContacts } = useContacts();
   const { data: relationships } = useRelationships(id);
   const { data: interactions } = useInteractions(id);
@@ -57,10 +64,14 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
   const [noteText, setNoteText] = useState("");
   const [noteImportant, setNoteImportant] = useState(false);
   const [relContactId, setRelContactId] = useState("");
-  const [relType, setRelType] = useState<string>(SUGGESTED_RELATIONSHIP_TYPES[0]);
+  const [relType, setRelType] = useState("");
   const [draftText, setDraftText] = useState("");
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [newTagName, setNewTagName] = useState("");
+
+  useEffect(() => {
+    if (!relType && relationshipTypes?.length) setRelType(relationshipTypes[0].name);
+  }, [relType, relationshipTypes]);
 
   if (!contact) return <p className="text-sm text-slateblue-400">Loading...</p>;
 
@@ -90,7 +101,7 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
 
   async function handleAddRelationship(e: FormEvent) {
     e.preventDefault();
-    if (!relContactId) return;
+    if (!relContactId || !relType) return;
     await createRelationship.mutateAsync({ contactAId: id, contactBId: relContactId, type: relType });
     setRelContactId("");
   }
@@ -127,6 +138,8 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <ProfileCompletionBar contact={contact} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-nest-200 text-lg font-semibold text-nest-800 sm:h-16 sm:w-16 sm:text-xl">
@@ -149,9 +162,15 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
           </div>
         </div>
         <div className="flex gap-2">
-          <Link to={`/contacts/${id}/edit`} className="rounded-lg px-3 py-1.5 text-sm font-medium text-nest-700 hover:bg-nest-100">
-            Edit
-          </Link>
+          {onEdit ? (
+            <button onClick={onEdit} className="rounded-lg px-3 py-1.5 text-sm font-medium text-nest-700 hover:bg-nest-100">
+              Edit
+            </button>
+          ) : (
+            <Link to={`/contacts/${id}/edit`} className="rounded-lg px-3 py-1.5 text-sm font-medium text-nest-700 hover:bg-nest-100">
+              Edit
+            </Link>
+          )}
           <button onClick={handleDelete} className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50">
             Delete
           </button>
@@ -354,9 +373,9 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
             onChange={(e) => setRelType(e.target.value)}
             className="rounded-lg border border-nest-200 px-2 py-1.5 text-sm"
           >
-            {SUGGESTED_RELATIONSHIP_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {capitalize(t)}
+            {relationshipTypes?.map((t) => (
+              <option key={t.id} value={t.name}>
+                {capitalize(t.name)}
               </option>
             ))}
           </select>

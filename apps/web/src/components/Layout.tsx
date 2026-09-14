@@ -3,11 +3,10 @@ import type { ReactNode } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 const NAV_ITEMS = [
+  { to: "/", tabLabel: "My Nest", sidebarLabel: "My Nest", end: true },
+  { to: "/contacts", tabLabel: "Contacts", sidebarLabel: "Contacts", end: false },
+  { to: "/create", tabLabel: "Create", sidebarLabel: "Create", end: false },
   { to: "/me", tabLabel: "Me", sidebarLabel: "Me", end: false },
-  { to: "/", tabLabel: "Contacts", sidebarLabel: "Contacts", end: true },
-  { to: "/web", tabLabel: "Web", sidebarLabel: "Relationship Web", end: false },
-  { to: "/circles", tabLabel: "Circles", sidebarLabel: "Circles", end: false },
-  { to: "/tags", tabLabel: "Tags", sidebarLabel: "Tags", end: false },
 ];
 
 const sidebarLinkClasses = ({ isActive }: { isActive: boolean }) =>
@@ -27,13 +26,13 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col bg-nest-50 md:flex-row">
       <header className="flex items-center gap-2 border-b border-nest-200 bg-white/80 px-4 py-3 md:hidden">
         <img src="/nest-icon.svg" alt="" className="h-6 w-6" />
-        <span className="text-base font-semibold text-nest-900">NestWork</span>
+        <span className="text-base font-semibold text-nest-900">Nestwork</span>
       </header>
 
       <aside className="hidden w-56 shrink-0 flex-col border-r border-nest-200 bg-white/60 px-4 py-6 md:flex">
         <div className="mb-8 flex items-center gap-2 px-2">
           <img src="/nest-icon.svg" alt="" className="h-7 w-7" />
-          <span className="text-lg font-semibold text-nest-900">NestWork</span>
+          <span className="text-lg font-semibold text-nest-900">Nestwork</span>
         </div>
         <nav className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => (

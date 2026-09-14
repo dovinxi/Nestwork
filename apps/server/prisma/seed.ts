@@ -12,6 +12,22 @@ const DEFAULT_CIRCLES = [
   { name: "Mentors", color: "#2C5F8A" },
 ];
 
+// Starting suggestions for the Relationship "type" dropdown -- editable from there on.
+const DEFAULT_RELATIONSHIP_TYPES = [
+  "spouse",
+  "partner",
+  "sibling",
+  "parent",
+  "child",
+  "cousin",
+  "friend",
+  "coworker",
+  "introduced by",
+  "mentor",
+  "mentee",
+  "knows",
+];
+
 async function main() {
   for (const circle of DEFAULT_CIRCLES) {
     await prisma.circle.upsert({
@@ -21,6 +37,15 @@ async function main() {
     });
   }
   console.log(`Seeded ${DEFAULT_CIRCLES.length} default circles.`);
+
+  for (const name of DEFAULT_RELATIONSHIP_TYPES) {
+    await prisma.relationshipType.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+  console.log(`Seeded ${DEFAULT_RELATIONSHIP_TYPES.length} default relationship types.`);
 }
 
 main()

@@ -57,6 +57,75 @@ export function useDeleteContact() {
   });
 }
 
+/** Applies a tag to a batch of contacts at once -- e.g. from the Nest's selection tray. */
+export function useBulkAddTag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contacts, tagId }: { contacts: Contact[]; tagId: string }) => {
+      await Promise.all(
+        contacts
+          .filter((c) => !c.tagIds.includes(tagId))
+          .map((c) => api.put<Contact>(`/contacts/${c.id}`, { tagIds: [...c.tagIds, tagId] }))
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+  });
+}
+
+/** Removes a tag from a batch of contacts at once. */
+export function useBulkRemoveTag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contacts, tagId }: { contacts: Contact[]; tagId: string }) => {
+      await Promise.all(
+        contacts
+          .filter((c) => c.tagIds.includes(tagId))
+          .map((c) => api.put<Contact>(`/contacts/${c.id}`, { tagIds: c.tagIds.filter((t) => t !== tagId) }))
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+  });
+}
+
+/** Assigns a circle to a batch of contacts at once. */
+export function useBulkAddCircle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contacts, circleId }: { contacts: Contact[]; circleId: string }) => {
+      await Promise.all(
+        contacts
+          .filter((c) => !c.circleIds.includes(circleId))
+          .map((c) => api.put<Contact>(`/contacts/${c.id}`, { circleIds: [...c.circleIds, circleId] }))
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+  });
+}
+
+/** Sets the same keep-in-touch reminder cadence across a batch of contacts. */
+export function useBulkSetKeepInTouch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contacts, frequencyDays }: { contacts: Contact[]; frequencyDays: number }) => {
+      await Promise.all(
+        contacts.map((c) => api.put<Contact>(`/contacts/${c.id}`, { keepInTouch: { frequencyDays } }))
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+  });
+}
+
+/** Marks a batch of contacts as contacted today, same as each one's own "Log contact today" button. */
+export function useBulkLogContactToday() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contacts }: { contacts: Contact[] }) => {
+      await Promise.all(contacts.map((c) => api.post<Contact>(`/contacts/${c.id}/log-contact`)));
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+  });
+}
+
 export function useLogContact(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

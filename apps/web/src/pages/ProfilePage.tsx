@@ -30,7 +30,7 @@ export function ProfilePage() {
     <div className="mx-auto max-w-xl">
       <h1 className="mb-1 text-2xl font-semibold text-slateblue-800">Me</h1>
       <p className="mb-6 text-sm text-slateblue-500">
-        This is you — the center of your relationship web. Everyone else's "relationship to you" fans
+        This is you — the center of your Nest. Everyone else's "relationship to you" fans
         out from this node.
       </p>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ContactDetailContent } from "./ContactDetailContent";
+import { ContactFormContent } from "./ContactFormContent";
 import { StatCard } from "./StatCard";
 import { useContactStats } from "../api/contactStats";
 
@@ -9,15 +10,22 @@ interface ContactPreviewPanelProps {
   onNavigateContact: (contactId: string) => void;
 }
 
-/** Slide-over drawer showing full contact details without leaving the relationship web. */
+/** Slide-over drawer showing full contact details without leaving the Nest. */
 export function ContactPreviewPanel({ contactId, onClose, onNavigateContact }: ContactPreviewPanelProps) {
   const [visible, setVisible] = useState(false);
+  const [editing, setEditing] = useState(false);
   const { data: contactStats } = useContactStats(contactId);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  // Switching to a different contact (via a connection link) should land back on that
+  // contact's detail view, not carry an in-progress edit over to them.
+  useEffect(() => {
+    setEditing(false);
+  }, [contactId]);
 
   return (
     <>
@@ -31,7 +39,7 @@ export function ContactPreviewPanel({ contactId, onClose, onNavigateContact }: C
         }`}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-nest-200 bg-white/90 px-4 py-3 backdrop-blur">
-          <span className="text-sm font-semibold text-slateblue-500">Contact</span>
+          <span className="text-sm font-semibold text-slateblue-500">{editing ? "Edit Contact" : "Contact"}</span>
           <button
             onClick={onClose}
             className="rounded-lg px-2 py-1 text-lg leading-none text-slateblue-400 hover:bg-nest-100 hover:text-slateblue-600"
@@ -41,7 +49,7 @@ export function ContactPreviewPanel({ contactId, onClose, onNavigateContact }: C
           </button>
         </div>
 
-        {!!contactStats?.stats.length && (
+        {!editing && !!contactStats?.stats.length && (
           <div className="grid grid-cols-2 gap-2 px-4 pt-4">
             {contactStats.stats.map((stat) => (
               <StatCard key={stat.id} stat={stat} />
@@ -50,7 +58,16 @@ export function ContactPreviewPanel({ contactId, onClose, onNavigateContact }: C
         )}
 
         <div className="p-4">
-          <ContactDetailContent contactId={contactId} onDeleted={onClose} onNavigateContact={onNavigateContact} />
+          {editing ? (
+            <ContactFormContent contactId={contactId} onSaved={() => setEditing(false)} onCancel={() => setEditing(false)} />
+          ) : (
+            <ContactDetailContent
+              contactId={contactId}
+              onDeleted={onClose}
+              onNavigateContact={onNavigateContact}
+              onEdit={() => setEditing(true)}
+            />
+          )}
         </div>
       </div>
     </>

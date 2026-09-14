@@ -15,17 +15,11 @@ export interface Relationship {
 export type RelationshipCreateInput = Omit<Relationship, "id" | "createdAt">;
 export type RelationshipUpdateInput = Partial<RelationshipCreateInput>;
 
-/** Suggested relationship types shown in the UI; users can also type a custom one. */
-export const SUGGESTED_RELATIONSHIP_TYPES = [
-  "spouse",
-  "partner",
-  "sibling",
-  "parent",
-  "child",
-  "cousin",
-  "friend",
-  "coworker",
-  "introduced by",
-  "mentor",
-  "mentee",
-] as const;
+/** A user-editable label offered in the Relationship "type" dropdown -- seeded with defaults, editable from Categories. */
+export interface RelationshipType {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export type RelationshipTypeCreateInput = Omit<RelationshipType, "id" | "createdAt">;

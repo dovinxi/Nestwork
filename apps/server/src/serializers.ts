@@ -1,5 +1,5 @@
-import type { Contact as SharedContact, Relationship as SharedRelationship, Interaction as SharedInteraction, Tag as SharedTag, Circle as SharedCircle, DraftMessage as SharedDraftMessage } from "@nestwork/shared";
-import type { Contact, ContactEmail, ContactPhone, ContactAddress, Tag, Circle, Relationship, Interaction, DraftMessage } from "@prisma/client";
+import type { Contact as SharedContact, Relationship as SharedRelationship, Interaction as SharedInteraction, Tag as SharedTag, Circle as SharedCircle, DraftMessage as SharedDraftMessage, RelationshipType as SharedRelationshipType } from "@nestwork/shared";
+import type { Contact, ContactEmail, ContactPhone, ContactAddress, Tag, Circle, Relationship, Interaction, DraftMessage, RelationshipType } from "@prisma/client";
 
 type ContactWithRelations = Contact & {
   emails: ContactEmail[];
@@ -60,6 +60,14 @@ export function serializeCircle(circle: Circle): SharedCircle {
     name: circle.name,
     color: circle.color,
     createdAt: circle.createdAt.toISOString(),
+  };
+}
+
+export function serializeRelationshipType(type: RelationshipType): SharedRelationshipType {
+  return {
+    id: type.id,
+    name: type.name,
+    createdAt: type.createdAt.toISOString(),
   };
 }
 

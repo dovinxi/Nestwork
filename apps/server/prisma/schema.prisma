@@ -118,6 +118,14 @@ model Relationship {
   @@index([contactBId])
 }
 
+/// A user-editable label offered in the Relationship "type" dropdown (e.g. "sibling",
+/// "coworker"). Relationship.type stays a free string -- this only drives suggestions.
+model RelationshipType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model Interaction {
   id        String   @id @default(cuid())
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
