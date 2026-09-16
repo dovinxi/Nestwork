@@ -14,10 +14,8 @@ draftMessagesRouter.get("/", async (req, res) => {
   res.json(drafts.map(serializeDraftMessage));
 });
 
-/**
- * Phase 2: this will call an LLM to generate `draftText` from contact context
- * (notes, interactions, occasion). For now it only accepts manually-written drafts.
- */
+/** Saves a draft -- either handwritten or generated via POST /api/ai/draft-message and then
+ * reviewed/edited by the user (see `generatedByAI` in the body). */
 draftMessagesRouter.post("/", async (req, res) => {
   const body = req.body as DraftMessageCreateInput;
   if (!body.contactId || !body.draftText) {
@@ -30,7 +28,7 @@ draftMessagesRouter.post("/", async (req, res) => {
       occasion: body.occasion,
       draftText: body.draftText,
       status: body.status ?? "draft",
-      generatedByAI: false,
+      generatedByAI: body.generatedByAI ?? false,
     },
   });
 

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { Contact, Tag, Circle } from "@nestwork/shared";
 import { TagBadge } from "./TagBadge";
 import { CircleBadge } from "./CircleBadge";
+import { ContactAvatar } from "./ContactAvatar";
 import { getReminderStatus } from "../utils/keepInTouch";
 import { capitalize } from "../utils/text";
 
@@ -13,7 +14,6 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 export function ContactCard({ contact, tags, circles }: { contact: Contact; tags: Tag[]; circles: Circle[] }) {
-  const initials = `${contact.firstName[0] ?? ""}${contact.lastName?.[0] ?? ""}`.toUpperCase();
   const status = getReminderStatus(contact.keepInTouch);
   const contactTags = tags.filter((t) => contact.tagIds.includes(t.id));
   const contactCircles = circles.filter((c) => contact.circleIds.includes(c.id));
@@ -23,9 +23,7 @@ export function ContactCard({ contact, tags, circles }: { contact: Contact; tags
       to={`/contacts/${contact.id}`}
       className="flex items-center gap-4 rounded-xl border border-nest-200 bg-white px-4 py-3 shadow-sm transition-shadow hover:shadow-md"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-nest-200 text-sm font-semibold text-nest-800">
-        {initials || "?"}
-      </div>
+      <ContactAvatar contact={contact} className="h-11 w-11 text-sm" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate font-medium text-slateblue-800">

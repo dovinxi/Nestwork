@@ -7,9 +7,12 @@ import { useRelationshipTypes } from "../api/relationshipTypes";
 import { useCreateRelationship, useDeleteRelationship, useRelationships } from "../api/relationships";
 import { useCreateInteraction, useInteractions } from "../api/interactions";
 import { useCreateDraftMessage, useDraftMessages } from "../api/draftMessages";
+import { useDraftMessage } from "../api/ai";
+import { ApiError } from "../api/client";
 import { TagBadge } from "./TagBadge";
 import { CircleBadge } from "./CircleBadge";
 import { ProfileCompletionBar } from "./ProfileCompletionBar";
+import { ContactAvatar } from "./ContactAvatar";
 import { formatRelativeDays, getReminderStatus } from "../utils/keepInTouch";
 import { capitalize } from "../utils/text";
 
@@ -60,12 +63,16 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
   const createInteraction = useCreateInteraction();
   const createDraftMessage = useCreateDraftMessage();
   const createTag = useCreateTag();
+  const draftMessageAi = useDraftMessage();
 
   const [noteText, setNoteText] = useState("");
   const [noteImportant, setNoteImportant] = useState(false);
   const [relContactId, setRelContactId] = useState("");
   const [relType, setRelType] = useState("");
   const [draftText, setDraftText] = useState("");
+  const [draftWasAiGenerated, setDraftWasAiGenerated] = useState(false);
+  const [draftOccasion, setDraftOccasion] = useState("");
+  const [draftAiError, setDraftAiError] = useState<string | null>(null);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [newTagName, setNewTagName] = useState("");
 
@@ -126,8 +133,30 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
   async function handleSaveDraft(e: FormEvent) {
     e.preventDefault();
     if (!draftText.trim()) return;
-    await createDraftMessage.mutateAsync({ contactId: id, draftText: draftText.trim(), status: "draft", generatedByAI: false });
+    await createDraftMessage.mutateAsync({
+      contactId: id,
+      draftText: draftText.trim(),
+      status: "draft",
+      generatedByAI: draftWasAiGenerated,
+      occasion: draftOccasion.trim() || undefined,
+    });
     setDraftText("");
+    setDraftWasAiGenerated(false);
+    setDraftOccasion("");
+  }
+
+  async function handleGenerateDraft() {
+    setDraftAiError(null);
+    try {
+      const { draftText: generated } = await draftMessageAi.mutateAsync({
+        contactId: id,
+        occasion: draftOccasion.trim() || undefined,
+      });
+      setDraftText(generated);
+      setDraftWasAiGenerated(true);
+    } catch (err) {
+      setDraftAiError(err instanceof ApiError ? err.message : "Couldn't generate a draft. Please try again.");
+    }
   }
 
   async function handleDelete() {
@@ -142,10 +171,7 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-nest-200 text-lg font-semibold text-nest-800 sm:h-16 sm:w-16 sm:text-xl">
-            {contact.firstName[0]}
-            {contact.lastName?.[0] ?? ""}
-          </div>
+          <ContactAvatar contact={contact} className="h-12 w-12 text-lg sm:h-16 sm:w-16 sm:text-xl" />
           <div>
             <h1 className="text-xl font-semibold text-slateblue-800 sm:text-2xl">
               {contact.firstName} {contact.lastName}
@@ -386,25 +412,43 @@ export function ContactDetailContent({ contactId: id, onDeleted, onNavigateConta
       </section>
 
       <section className="rounded-xl border border-dashed border-nest-300 bg-white p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slateblue-400">Draft a message</h2>
-          <span className="rounded-full bg-nest-100 px-2 py-0.5 text-[10px] font-medium text-nest-600">
-            AI drafting coming in phase 2
-          </span>
-        </div>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slateblue-400">Draft a message</h2>
         <div className="mb-3 space-y-2">
           {draftMessages?.map((d) => (
             <p key={d.id} className="rounded-lg bg-nest-50 px-3 py-2 text-sm text-slateblue-600">
+              {d.generatedByAI && <span className="mr-1.5 text-xs" title="Generated with AI">✨</span>}
               {d.draftText}
             </p>
           ))}
         </div>
+
+        <div className="mb-2 flex gap-2">
+          <input
+            className="flex-1 rounded-lg border border-nest-200 px-3 py-1.5 text-sm focus:border-nest-400 focus:outline-none"
+            placeholder="Occasion (optional) -- e.g. birthday, checking in, congratulating..."
+            value={draftOccasion}
+            onChange={(e) => setDraftOccasion(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={handleGenerateDraft}
+            disabled={draftMessageAi.isPending}
+            className="shrink-0 rounded-lg bg-nest-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-nest-700 disabled:opacity-50"
+          >
+            {draftMessageAi.isPending ? "Generating..." : "✨ Generate with AI"}
+          </button>
+        </div>
+        {draftAiError && <p className="mb-2 text-xs text-red-600">{draftAiError}</p>}
+
         <form onSubmit={handleSaveDraft} className="flex flex-col gap-2">
           <textarea
             className="w-full rounded-lg border border-nest-200 px-3 py-2 text-sm focus:border-nest-400 focus:outline-none"
-            placeholder="Write a message draft by hand for now..."
+            placeholder="...or write a message draft by hand"
             value={draftText}
-            onChange={(e) => setDraftText(e.target.value)}
+            onChange={(e) => {
+              setDraftText(e.target.value);
+              setDraftWasAiGenerated(false);
+            }}
           />
           <button
             type="submit"

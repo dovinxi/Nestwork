@@ -9,6 +9,7 @@ import { interactionsRouter } from "./routes/interactions";
 import { draftMessagesRouter } from "./routes/draftMessages";
 import { profileRouter } from "./routes/profile";
 import { statsRouter } from "./routes/stats";
+import { aiRouter } from "./routes/ai";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
@@ -27,6 +28,7 @@ app.use("/api/interactions", interactionsRouter);
 app.use("/api/draft-messages", draftMessagesRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/stats", statsRouter);
+app.use("/api/ai", aiRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

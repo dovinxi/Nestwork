@@ -16,7 +16,23 @@ model UserProfile {
   id        String   @id @default("me")
   name      String   @default("Me")
   photoUrl  String?
+
+  /// Freeform context fed to the AI features (Quick Update, message drafting) so they act
+  /// more like this specific person -- personality, communication style, what matters to them.
+  aiAboutMe String?
+  writingSamples WritingSample[]
+
   updatedAt DateTime @updatedAt
+}
+
+/// A message the user has written themselves, kept as a style example for AI-drafted
+/// messages -- distinct from DraftMessage, which is a per-contact draft (AI- or hand-written).
+model WritingSample {
+  id        String      @id @default(cuid())
+  text      String
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId String
+  createdAt DateTime    @default(now())
 }
 
 model Contact {

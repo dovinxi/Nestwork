@@ -5,6 +5,8 @@ import { useCreateTag, useTags } from "../api/tags";
 import { useCreateCircle, useCircles } from "../api/circles";
 import { ApiError } from "../api/client";
 import { FREQUENCY_PRESETS } from "../utils/keepInTouch";
+import { readImageAsDataUrl } from "../utils/imageUpload";
+import { ContactAvatar } from "./ContactAvatar";
 
 type EmailDraft = Omit<ContactEmail, "id">;
 type PhoneDraft = Omit<ContactPhone, "id">;
@@ -33,6 +35,7 @@ export function ContactFormContent({ contactId, onSaved, onCancel }: ContactForm
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [nickname, setNickname] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [relationshipToMe, setRelationshipToMe] = useState("");
   const [howWeMet, setHowWeMet] = useState("");
   const [company, setCompany] = useState("");
@@ -47,12 +50,14 @@ export function ContactFormContent({ contactId, onSaved, onCancel }: ContactForm
   const [newTagName, setNewTagName] = useState("");
   const [newCircleName, setNewCircleName] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!existing) return;
     setFirstName(existing.firstName);
     setLastName(existing.lastName ?? "");
     setNickname(existing.nickname ?? "");
+    setPhotoUrl(existing.photoUrl ?? "");
     setRelationshipToMe(existing.relationshipToMe ?? "");
     setHowWeMet(existing.howWeMet ?? "");
     setCompany(existing.company ?? "");
@@ -74,6 +79,18 @@ export function ContactFormContent({ contactId, onSaved, onCancel }: ContactForm
     setSelectedCircleIds((prev) =>
       prev.includes(circleId) ? prev.filter((id_) => id_ !== circleId) : [...prev, circleId]
     );
+  }
+
+  async function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    setPhotoError(null);
+    try {
+      setPhotoUrl(await readImageAsDataUrl(file));
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Couldn't use that photo.");
+    }
   }
 
   async function handleCreateTag() {
@@ -100,6 +117,7 @@ export function ContactFormContent({ contactId, onSaved, onCancel }: ContactForm
       firstName: firstName.trim(),
       lastName: lastName.trim() || undefined,
       nickname: nickname.trim() || undefined,
+      photoUrl: photoUrl.trim() || undefined,
       relationshipToMe: relationshipToMe.trim() || undefined,
       howWeMet: howWeMet.trim() || undefined,
       company: company.trim() || undefined,
@@ -140,6 +158,45 @@ export function ContactFormContent({ contactId, onSaved, onCancel }: ContactForm
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className="rounded-xl border border-nest-200 bg-white p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slateblue-400">Basics</h2>
+          <div className="mb-3 flex items-start gap-4">
+            <ContactAvatar contact={{ firstName: firstName || "?", lastName, photoUrl }} className="h-14 w-14 text-lg" />
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer rounded-lg bg-nest-100 px-3 py-1.5 text-xs font-medium text-nest-700 hover:bg-nest-200">
+                  Upload photo
+                  <input type="file" accept="image/*" onChange={handlePhotoFileChange} className="hidden" />
+                </label>
+                {photoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoUrl("");
+                      setPhotoError(null);
+                    }}
+                    className="text-xs font-medium text-slateblue-400 hover:text-red-500"
+                  >
+                    Remove photo
+                  </button>
+                )}
+              </div>
+              {photoUrl.startsWith("data:") ? (
+                <p className="rounded-lg border border-nest-200 bg-nest-50 px-3 py-2 text-sm text-slateblue-500">
+                  Photo uploaded from device
+                </p>
+              ) : (
+                <input
+                  className={inputClass}
+                  placeholder="...or paste a photo URL"
+                  value={photoUrl}
+                  onChange={(e) => {
+                    setPhotoUrl(e.target.value);
+                    setPhotoError(null);
+                  }}
+                />
+              )}
+              {photoError && <p className="text-xs text-red-600">{photoError}</p>}
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="First name*">
               <input className={inputClass} value={firstName} onChange={(e) => setFirstName(e.target.value)} required />

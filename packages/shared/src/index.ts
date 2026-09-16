@@ -6,3 +6,4 @@ export * from "./interaction";
 export * from "./draftMessage";
 export * from "./userProfile";
 export * from "./profileStats";
+export * from "./ai";

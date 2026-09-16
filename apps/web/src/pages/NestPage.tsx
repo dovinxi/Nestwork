@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import type { Contact, ProfileStat } from "@nestwork/shared";
+import type { Contact, ProfileStat, Tag } from "@nestwork/shared";
 import {
   useBulkAddCircle,
   useBulkAddTag,
@@ -16,6 +16,7 @@ import { useCircles, useCreateCircle } from "../api/circles";
 import { useTags } from "../api/tags";
 import { useProfileStats } from "../api/stats";
 import { AddContactPanel } from "../components/AddContactPanel";
+import { QuickUpdateModal } from "../components/QuickUpdateModal";
 import { ContactPreviewPanel } from "../components/ContactPreviewPanel";
 import { SelectionTray } from "../components/SelectionTray";
 import { StatCard } from "../components/StatCard";
@@ -56,6 +57,100 @@ function pointAt(cx: number, cy: number, radius: number, angle: number) {
 
 function polar(radius: number, angle: number) {
   return pointAt(CENTER, CENTER, radius, angle);
+}
+
+/** A contact's node on the web -- their photo when set (falling back to initials, including
+ * on a broken image URL), clipped to the node's circle. */
+function NestContactNode({
+  contact,
+  x,
+  y,
+  isSelected,
+  onClick,
+}: {
+  contact: Contact;
+  x: number;
+  y: number;
+  isSelected: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const initials = `${contact.firstName[0] ?? ""}${contact.lastName?.[0] ?? ""}`.toUpperCase();
+  const showPhoto = !!contact.photoUrl && !imageFailed;
+
+  return (
+    <g transform={`translate(${x}, ${y})`} onClick={onClick} className="rel-node cursor-pointer">
+      {isSelected && <circle r={NODE_RADIUS + 6} fill="none" stroke="#F5A623" strokeWidth={3} />}
+      <circle className="rel-node-circle" r={NODE_RADIUS} fill="#4F80B4" />
+      {showPhoto ? (
+        <>
+          <clipPath id={`avatar-clip-${contact.id}`}>
+            <circle r={NODE_RADIUS} />
+          </clipPath>
+          <image
+            href={contact.photoUrl}
+            x={-NODE_RADIUS}
+            y={-NODE_RADIUS}
+            width={NODE_RADIUS * 2}
+            height={NODE_RADIUS * 2}
+            clipPath={`url(#avatar-clip-${contact.id})`}
+            preserveAspectRatio="xMidYMid slice"
+            onError={() => setImageFailed(true)}
+          />
+        </>
+      ) : (
+        <text textAnchor="middle" dy="0.35em" fontSize={12} fill="white" fontWeight={600}>
+          {initials || "?"}
+        </text>
+      )}
+      <text textAnchor="middle" y={NODE_RADIUS + 16} fontSize={11} fill="#37414F">
+        {contact.firstName}
+      </text>
+    </g>
+  );
+}
+
+/** The "Hide all"/"Show all" toggle plus one pill per tag -- shared between the desktop
+ * inline row and the mobile dropdown panel so the two stay in sync automatically. */
+function TagVisibilityPills({
+  tags,
+  hiddenTagIds,
+  onToggleAll,
+  onToggleTag,
+}: {
+  tags: Tag[];
+  hiddenTagIds: Set<string>;
+  onToggleAll: () => void;
+  onToggleTag: (tagId: string) => void;
+}) {
+  return (
+    <>
+      <button
+        onClick={onToggleAll}
+        className="shrink-0 rounded-full border border-dashed border-nest-300 px-3 py-1 text-xs font-medium text-slateblue-500 hover:border-nest-400"
+      >
+        {hiddenTagIds.size ? "Show all" : "Hide all"}
+      </button>
+      {tags.map((tag) => {
+        const hidden = hiddenTagIds.has(tag.id);
+        return (
+          <button
+            key={tag.id}
+            onClick={() => onToggleTag(tag.id)}
+            className="shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-opacity"
+            style={
+              hidden
+                ? { backgroundColor: `${tag.color}22`, color: tag.color, opacity: 0.5 }
+                : { backgroundColor: tag.color, color: "white" }
+            }
+            title={hidden ? `Show "${tag.name}" connection lines` : `Hide "${tag.name}" connection lines`}
+          >
+            {tag.name}
+          </button>
+        );
+      })}
+    </>
+  );
 }
 
 /** Area-proportional so bubble *size* (not radius) tracks member count -- how people actually perceive it. */
@@ -154,6 +249,7 @@ export function NestPage() {
 
   const [zoomedKey, setZoomedKey] = useState<string | null>(null);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showQuickUpdate, setShowQuickUpdate] = useState(false);
 
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [viewTransitionEnabled, setViewTransitionEnabled] = useState(true);
@@ -293,6 +389,7 @@ export function NestPage() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [meSelected, setMeSelected] = useState(false);
+  const [meImageFailed, setMeImageFailed] = useState(false);
   const bulkAddTag = useBulkAddTag();
   const bulkRemoveTag = useBulkRemoveTag();
   const bulkAddCircle = useBulkAddCircle();
@@ -410,6 +507,7 @@ export function NestPage() {
     return (tags ?? []).filter((t) => ids.has(t.id));
   }, [tagLinks, tags]);
   const [hiddenTagIds, setHiddenTagIds] = useState<Set<string>>(new Set());
+  const [tagPanelOpen, setTagPanelOpen] = useState(false);
   const visibleTagLinks = useMemo(
     () => tagLinks.filter((l) => !hiddenTagIds.has(l.tagId)),
     [tagLinks, hiddenTagIds]
@@ -557,6 +655,12 @@ export function NestPage() {
             {selectionMode ? "Done selecting" : "Select people"}
           </button>
           <button
+            onClick={() => setShowQuickUpdate(true)}
+            className="rounded-lg bg-nest-100 px-4 py-2 text-sm font-medium text-nest-700 hover:bg-nest-200"
+          >
+            ✨ Quick Update
+          </button>
+          <button
             onClick={() => setShowAddContact(true)}
             className="rounded-lg bg-nest-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-nest-700"
           >
@@ -578,37 +682,56 @@ export function NestPage() {
       />
 
       {!!tagsWithLinks.length && (
-        <div className="mb-4 flex items-start gap-2">
-          <span className="mt-1 shrink-0 whitespace-nowrap text-xs font-medium text-slateblue-400">
-            Tag connections
-          </span>
-          <div className="-mx-4 flex flex-1 flex-wrap gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="mb-4">
+          {/* Desktop/tablet: full inline row -- plenty of horizontal room. */}
+          <div className="hidden items-start gap-2 sm:flex">
+            <span className="mt-1 shrink-0 whitespace-nowrap text-xs font-medium text-slateblue-400">
+              Tag connections
+            </span>
+            <div className="flex flex-1 flex-wrap gap-1.5">
+              <TagVisibilityPills
+                tags={tagsWithLinks}
+                hiddenTagIds={hiddenTagIds}
+                onToggleAll={() =>
+                  setHiddenTagIds(hiddenTagIds.size ? new Set() : new Set(tagsWithLinks.map((t) => t.id)))
+                }
+                onToggleTag={toggleTagLinesHidden}
+              />
+            </div>
+          </div>
+
+          {/* Mobile: collapsed behind a dropdown so it doesn't push the graph down. */}
+          <div className="relative sm:hidden">
             <button
-              onClick={() =>
-                setHiddenTagIds(hiddenTagIds.size ? new Set() : new Set(tagsWithLinks.map((t) => t.id)))
-              }
-              className="shrink-0 rounded-full border border-dashed border-nest-300 px-3 py-1 text-xs font-medium text-slateblue-500 hover:border-nest-400"
+              onClick={() => setTagPanelOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-nest-200 bg-white px-3 py-1.5 text-xs font-medium text-slateblue-600"
             >
-              {hiddenTagIds.size ? "Show all" : "Hide all"}
+              Tag connections
+              {hiddenTagIds.size > 0 && (
+                <span className="rounded-full bg-nest-100 px-1.5 py-0.5 text-[10px] font-semibold text-nest-700">
+                  {tagsWithLinks.length - hiddenTagIds.size}/{tagsWithLinks.length} shown
+                </span>
+              )}
+              <span className={`text-[10px] transition-transform ${tagPanelOpen ? "rotate-180" : ""}`}>▾</span>
             </button>
-            {tagsWithLinks.map((tag) => {
-              const hidden = hiddenTagIds.has(tag.id);
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => toggleTagLinesHidden(tag.id)}
-                  className="shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-opacity"
-                  style={
-                    hidden
-                      ? { backgroundColor: `${tag.color}22`, color: tag.color, opacity: 0.5 }
-                      : { backgroundColor: tag.color, color: "white" }
-                  }
-                  title={hidden ? `Show "${tag.name}" connection lines` : `Hide "${tag.name}" connection lines`}
-                >
-                  {tag.name}
-                </button>
-              );
-            })}
+
+            {tagPanelOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setTagPanelOpen(false)} />
+                <div className="absolute left-0 top-full z-40 mt-1 w-72 max-w-[85vw] rounded-lg border border-nest-200 bg-white p-3 shadow-lg">
+                  <div className="flex flex-wrap gap-1.5">
+                    <TagVisibilityPills
+                      tags={tagsWithLinks}
+                      hiddenTagIds={hiddenTagIds}
+                      onToggleAll={() =>
+                        setHiddenTagIds(hiddenTagIds.size ? new Set() : new Set(tagsWithLinks.map((t) => t.id)))
+                      }
+                      onToggleTag={toggleTagLinesHidden}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -775,9 +898,27 @@ export function NestPage() {
                   <circle r={CENTER_NODE_RADIUS + 6} fill="none" stroke="#F5A623" strokeWidth={3} />
                 )}
                 <circle className="rel-center-circle" r={CENTER_NODE_RADIUS} fill="#2C5F8A" />
-                <text textAnchor="middle" dy="0.35em" fontSize={13} fill="white" fontWeight={700}>
-                  {(profile?.name ?? "Me")[0]?.toUpperCase()}
-                </text>
+                {profile?.photoUrl && !meImageFailed ? (
+                  <>
+                    <clipPath id="me-avatar-clip">
+                      <circle r={CENTER_NODE_RADIUS} />
+                    </clipPath>
+                    <image
+                      href={profile.photoUrl}
+                      x={-CENTER_NODE_RADIUS}
+                      y={-CENTER_NODE_RADIUS}
+                      width={CENTER_NODE_RADIUS * 2}
+                      height={CENTER_NODE_RADIUS * 2}
+                      clipPath="url(#me-avatar-clip)"
+                      preserveAspectRatio="xMidYMid slice"
+                      onError={() => setMeImageFailed(true)}
+                    />
+                  </>
+                ) : (
+                  <text textAnchor="middle" dy="0.35em" fontSize={13} fill="white" fontWeight={700}>
+                    {(profile?.name ?? "Me")[0]?.toUpperCase()}
+                  </text>
+                )}
                 <text textAnchor="middle" y={CENTER_NODE_RADIUS + 16} fontSize={12} fill="#233D57" fontWeight={600}>
                   {profile?.name ?? "Me"}
                 </text>
@@ -786,30 +927,19 @@ export function NestPage() {
               {contacts.map((c) => {
                 const pos = layout.positions.get(c.id);
                 if (!pos) return null;
-                const initials = `${c.firstName[0] ?? ""}${c.lastName?.[0] ?? ""}`.toUpperCase();
-                const isSelected = selectedIds.has(c.id);
                 return (
-                  <g
+                  <NestContactNode
                     key={c.id}
-                    transform={`translate(${pos.x}, ${pos.y})`}
+                    contact={c}
+                    x={pos.x}
+                    y={pos.y}
+                    isSelected={selectedIds.has(c.id)}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (selectionMode) toggleSelected(c.id);
                       else showContact(c.id);
                     }}
-                    className="rel-node cursor-pointer"
-                  >
-                    {isSelected && (
-                      <circle r={NODE_RADIUS + 6} fill="none" stroke="#F5A623" strokeWidth={3} />
-                    )}
-                    <circle className="rel-node-circle" r={NODE_RADIUS} fill="#4F80B4" />
-                    <text textAnchor="middle" dy="0.35em" fontSize={12} fill="white" fontWeight={600}>
-                      {initials || "?"}
-                    </text>
-                    <text textAnchor="middle" y={NODE_RADIUS + 16} fontSize={11} fill="#37414F">
-                      {c.firstName}
-                    </text>
-                  </g>
+                  />
                 );
               })}
             </g>
@@ -832,6 +962,8 @@ export function NestPage() {
       {selectedContactId && (
         <ContactPreviewPanel contactId={selectedContactId} onClose={closeContactPanel} onNavigateContact={showContact} />
       )}
+
+      {showQuickUpdate && <QuickUpdateModal contacts={contacts ?? []} onClose={() => setShowQuickUpdate(false)} />}
 
       {showAddContact && (
         <AddContactPanel
